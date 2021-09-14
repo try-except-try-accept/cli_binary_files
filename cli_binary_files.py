@@ -1,6 +1,4 @@
-from io import BufferedWriter
-
-from pickle import load, dump
+import pickle
 
 def open_binary_file(filename, mode):
      if mode == "RANDOM":
@@ -11,10 +9,11 @@ def open_binary_file(filename, mode):
           return SerialFile(filename)
      else:
           raise Exception(f"Mode {mode} is invalid")
-     
-     
 
-class BinaryFile():
+##################################################################################     
+
+class BinaryFile:
+     
      def __init__(self, filename, size=None):
           self.filename = filename
           self.pointer = 0
@@ -23,84 +22,88 @@ class BinaryFile():
 
           try:
                with open(self.filename, "rb") as f:
-                    self.records = load(f)
+                    self.records = pickle.load(f)
           except:
                self.records = []
 
-
-     ## to do - decorator function checks if file is still open
-     def check_open(func):
-          def wrapper(self):
+     def check_open(func, *arg):          
+          def wrapper(self, *arg):
                if self.closed:
-                    raise Exception(f"Error - cannot operate on a closed file")
+                    raise Exception(f"Cannot operate on a closed file")
+               result = func(self, *arg)
+
+               return func
+          return wrapper
+
+     @check_open
+     def seek(self, address):          
+          self.pointer = address
+          
+     @check_open     
+     def put_record(self, record):          
+          self.records.append(record)
 
           
-
-     def seek(self, address):          
-          self.pointer = address   
-
-     def put_record(self, record):
-
-          try:
-               self.records[self.pointer] = record              
-          except:
-               raise Exception(f"Address {self.pointer} does not exist in this file")
-
-
-     def get_record(self):
-        
+     @check_open
+     def get_record(self):        
           try:
                return self.records[self.pointer]
           except:
                raise Exception(f"Address {self.pointer} does not exist in this file")
 
-
+     @check_open
      def close(self):
+          self.closed = True
           with open(self.filename, "wb") as f:
-               dump(self.records, f)
-          
+               pickle.dump(self.records, f)
+
+     @check_open     
      def eof(self):
-          pass
+          if self.pointer >= len(self.records):
+               return True
+          else:
+               return False
+
+##################################################################################
 
 class RandomFile(BinaryFile):
      def __init__(self, filename, size=None):
           super().__init__(filename, size)
 
+     def put_record(self, record):
+          try:
+               self.records[self.pointer] = record              
+          except:
+               raise Exception(f"Address {self.pointer} does not exist in this file")
+
      def seek(self, address):
+          super().seek(address)
           if self.size is not None:
                if address > self.size:
                     raise Exception(f"Address {address} does not exist in this file")
                
           record_count = len(self.records)          
           self.records += [None for i in range((address+1) - record_count)]
-          self.pointer = address
 
+##################################################################################
           
-
-          
-          
-
 class SequentialFile(BinaryFile):
      def __init__(self, filename, size=None):
           super().__init__(filename)
 
      def get_record(self):
           record = super().get_record()          
-          self.pointer += 1
-          
+          self.pointer += 1          
           return record
 
      def put_record(self, record):          
           self.records.append(record)
-          
-      
 
+##################################################################################
+          
 class SerialFile(BinaryFile):
      def __init__(self, filename, size=None):
           super().__init__(filename)
-
-     def put_record(self, record):          
-          self.records.append(record)
       
      def get_record(self):
           record = super().get_record()          
@@ -109,38 +112,42 @@ class SerialFile(BinaryFile):
 
      def seek(self, address):
           raise Exception("Serial files do not support direct access")
-     
 
+################################################################################## 
+
+
+def demo():
 
 class Record:
      def __init__(self):
           self.name = ""
           self.age = 0
 
-person1 = Record()
-person1.name = "Bob"
-person1.age = 77
-
-person2 = Record()
-person2.name = "Sally"
-person2.age = 60
-
-person3 = Record()
-person3.name = "Alice"
-person3.age = 50
 
 
-from os import remove, getcwd
 
-try:
-     remove(getcwd()+"/serial.dat")
-     remove(getcwd()+"/sequential.dat")
-     remove(getcwd()+"/random.dat")
-except:
-     pass
+     person1 = Record()
+     person1.name = "Bob"
+     person1.age = 77
+
+     person2 = Record()
+     person2.name = "Sally"
+     person2.age = 60
+
+     person3 = Record()
+     person3.name = "Alice"
+     person3.age = 50
 
 
-if __name__ == "__main__":
+     from os import remove, getcwd
+
+     try:
+          remove(getcwd()+"/serial.dat")
+          remove(getcwd()+"/sequential.dat")
+          remove(getcwd()+"/random.dat")
+     except:
+          pass
+
 
      print("\nSerial file demo\n")
 
@@ -217,3 +224,6 @@ if __name__ == "__main__":
      file.close()
 
      
+
+if __name__ == "__main__":
+     demo()
