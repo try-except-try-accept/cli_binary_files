@@ -214,4 +214,6 @@ if __name__ == "__main__":
      record = file.get_record()
      print(f"Jumped straight to address 20 and found {record.name}.")
 
+     file.close()
+
      
